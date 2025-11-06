@@ -1,0 +1,30 @@
+version: '3.8'
+
+services:
+  # Serviço do Backend (Go)
+  backend:
+    build:
+      context: ./backend # Onde encontrar o Dockerfile do backend
+    container_name: kanban-backend
+    ports:
+      # Mapeia a porta 8080 do host (seu PC) para a 8080 do container
+      - "8080:8080"
+    volumes:
+      # Monta o 'tasks.json' do seu PC para dentro do container.
+      # Isso garante que a persistência funcione mesmo reiniciando o container.
+      - ./backend/tasks.json:/tasks.json
+    # Reinicia o container se ele falhar
+    restart: unless-stopped
+
+  # Serviço do Frontend (React/Nginx)
+  frontend:
+    build:
+      context: ./frontend # Onde encontrar o Dockerfile do frontend
+    container_name: kanban-frontend
+    ports:
+      # Mapeia a porta 3000 do host para a porta 80 do Nginx no container
+      - "3000:80"
+    # Garante que o frontend só vai iniciar DEPOIS que o backend estiver pronto
+    depends_on:
+      - backend
+    restart: unless-stopped

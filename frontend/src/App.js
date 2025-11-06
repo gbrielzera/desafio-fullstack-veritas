@@ -1,29 +1,27 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import * as api from './services/api'; // Importa nossas funções da API
+// Importações do react-beautiful-dnd
+import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
+import * as api from './services/api'; 
 import TaskCard from './components/TaskCard';
 import TaskForm from './components/TaskForm';
 import './App.css';
 
-// Nossas 3 colunas fixas [cite: 7]
+// Nossas 3 colunas fixas
 const COLUMNS = ['A Fazer', 'Em Progresso', 'Concluídas'];
 
 function App() {
-  // Estados da aplicação
-  const [tasks, setTasks] = useState([]); // A lista de todas as tarefas
-  const [loading, setLoading] = useState(true); // Feedback de loading 
-  const [error, setError] = useState(null); // Feedback de erro 
-  
-  // Estados para o formulário (modal)
+  const [tasks, setTasks] = useState([]); 
+  const [loading, setLoading] = useState(true); 
+  const [error, setError] = useState(null); 
   const [isFormOpen, setIsFormOpen] = useState(false);
-  const [taskToEdit, setTaskToEdit] = useState(null); // (null) se for criar, (task) se for editar
+  const [taskToEdit, setTaskToEdit] = useState(null); 
 
-  // Função para buscar os dados da API Go
   const fetchTasks = useCallback(async () => {
     try {
       setLoading(true);
       setError(null);
       const response = await api.getTasks();
-      setTasks(response.data || []); // Garante que tasks seja sempre um array
+      setTasks(response.data || []); 
     } catch (err) {
       console.error("Erro ao buscar tarefas:", err);
       setError('Não foi possível carregar as tarefas.');
@@ -32,62 +30,55 @@ function App() {
     }
   }, []);
 
-  // useEffect: Roda quando o componente é montado
-  // O array vazio [] significa "rode apenas uma vez"
   useEffect(() => {
     fetchTasks();
-  }, [fetchTasks]); // fetchTasks está listado como dependência
+  }, [fetchTasks]); 
 
-  // ----- Funções de Manipulação de Tarefas -----
+  // ----- Funções de Manipulação de Tarefas (CRUD) -----
 
-  // Salvar (Criar ou Atualizar) 
   const handleSaveTask = async (taskData) => {
     try {
       if (taskData.id) {
-        // 1. ATUALIZAR (Editar)
+        // ATUALIZAR (Editar)
         const updatedTask = await api.updateTask(taskData.id, taskData);
-        // Atualiza o estado local do React
         setTasks(tasks.map(t => (t.id === taskData.id ? updatedTask.data : t)));
       } else {
-        // 2. CRIAR (Nova Tarefa)
-        // Define o status padrão se for uma tarefa nova
-        const newTaskData = { ...taskData, status: COLUMNS[0] }; // COLUMNS[0] = "A Fazer"
+        // CRIAR (Nova Tarefa)
+        const newTaskData = { ...taskData, status: COLUMNS[0] }; 
         const newTask = await api.createTask(newTaskData);
-        // Adiciona a nova tarefa ao estado local
         setTasks([...tasks, newTask.data]);
       }
     } catch (err) {
       console.error("Erro ao salvar tarefa:", err);
       setError("Falha ao salvar a tarefa. Verifique o console.");
     } finally {
-      // Fecha o formulário
       setIsFormOpen(false);
       setTaskToEdit(null);
     }
   };
 
-  // Mover tarefa entre colunas 
+  // Esta função agora será chamada pelo 'onDragEnd'
   const handleMoveTask = async (task, newStatus) => {
     const updatedTask = { ...task, status: newStatus };
     
+    // Atualização Otimista (Muda na UI primeiro)
+    setTasks(tasks.map(t => (t.id === task.id ? updatedTask : t)));
+
     try {
-      // Atualiza primeiro na API
+      // Atualiza na API em background
       await api.updateTask(task.id, updatedTask);
-      // Atualiza o estado local do React se a API responder com sucesso
-      setTasks(tasks.map(t => (t.id === task.id ? updatedTask : t)));
     } catch (err) {
       console.error("Erro ao mover tarefa:", err);
-      setError("Falha ao mover a tarefa.");
+      setError("Falha ao mover a tarefa. Revertendo...");
+      // Reverte a mudança se a API falhar
+      setTasks(tasks.map(t => (t.id === task.id ? task : t)));
     }
   };
 
-  // Excluir tarefa 
   const handleDeleteTask = async (id) => {
-    // Confirmação (boa prática)
     if (window.confirm('Tem certeza que deseja excluir esta tarefa?')) {
       try {
         await api.deleteTask(id);
-        // Remove do estado local
         setTasks(tasks.filter(t => t.id !== id));
       } catch (err) {
         console.error("Erro ao excluir tarefa:", err);
@@ -97,20 +88,17 @@ function App() {
   };
 
   // ----- Funções de UI (Formulário) -----
-
-  // Abre o formulário para criar
+  // (Estas funções permanecem iguais)
   const handleOpenCreateForm = () => {
-    setTaskToEdit(null); // Garante que não está em modo de edição
+    setTaskToEdit(null); 
     setIsFormOpen(true);
   };
 
-  // Abre o formulário para editar
   const handleOpenEditForm = (task) => {
-    setTaskToEdit(task); // Define a tarefa que queremos editar
+    setTaskToEdit(task); 
     setIsFormOpen(true);
   };
 
-  // Fecha o formulário
   const handleCloseForm = () => {
     setIsFormOpen(false);
     setTaskToEdit(null);
@@ -123,6 +111,40 @@ function App() {
     return tasks.filter(task => task.status === columnName);
   };
 
+  // ----- LÓGICA DO DRAG AND DROP -----
+
+  /**
+   * Chamada quando o usuário solta um card.
+   * @param {object} result - Contém 'source' (de onde veio) e 'destination' (para onde foi)
+   */
+  const onDragEnd = (result) => {
+    const { source, destination, draggableId } = result;
+
+    // 1. Soltou fora de uma coluna válida
+    if (!destination) {
+      return;
+    }
+
+    // 2. Soltou na mesma coluna e mesma posição
+    if (
+      destination.droppableId === source.droppableId &&
+      destination.index === source.index
+    ) {
+      return;
+    }
+
+    // 3. Encontra a tarefa que foi movida
+    const task = tasks.find(t => t.id === draggableId);
+
+    // 4. Pega o novo status (o ID da coluna de destino)
+    const newStatus = destination.droppableId;
+
+    // 5. Chama a função de mover
+    if (task && task.status !== newStatus) {
+      handleMoveTask(task, newStatus);
+    }
+  };
+
   return (
     <div className="App">
       <div className="kanban-header">
@@ -132,33 +154,72 @@ function App() {
         </button>
       </div>
 
-      {/* Exibe feedbacks visuais  */}
       {loading && <div className="loading">Carregando tarefas...</div>}
       {error && <div className="error">{error}</div>}
 
-      {/* O quadro Kanban */}
-      {!loading && !error && (
-        <div className="kanban-board">
-          {COLUMNS.map(columnName => (
-            <div className="kanban-column" key={columnName}>
-              <h2>{columnName}</h2>
-              <div className="tasks-container">
-                {getTasksByColumn(columnName).map(task => (
-                  <TaskCard
-                    key={task.id}
-                    task={task}
-                    onEdit={handleOpenEditForm}
-                    onDelete={handleDeleteTask}
-                    onMove={handleMoveTask}
-                  />
-                ))}
-              </div>
-            </div>
-          ))}
-        </div>
-      )}
+      {/* DragDropContext envolve todo o quadro.
+        Ele gerencia o estado do drag-and-drop.
+      */}
+      <DragDropContext onDragEnd={onDragEnd}>
+        {!loading && !error && (
+          <div className="kanban-board">
+            {COLUMNS.map(columnName => (
+              /*
+                Droppable é a área onde um card pode ser solto (a coluna).
+                'droppableId' deve ser único (usamos o nome da coluna).
+              */
+              <Droppable key={columnName} droppableId={columnName}>
+                {(provided, snapshot) => (
+                  <div
+                    className="kanban-column"
+                    ref={provided.innerRef}
+                    {...provided.droppableProps}
+                    // Adiciona um estilo visual quando estamos arrastando sobre esta coluna
+                    style={{
+                      backgroundColor: snapshot.isDraggingOver ? '#e0f7fa' : '#e9ecef',
+                    }}
+                  >
+                    <h2>{columnName}</h2>
+                    <div className="tasks-container">
+                      {getTasksByColumn(columnName).map((task, index) => (
+                        /*
+                          Draggable é o item que pode ser arrastado (o card).
+                          'draggableId' e 'key' devem ser o ID único da tarefa.
+                          'index' é a posição dele na lista.
+                        */
+                        <Draggable key={task.id} draggableId={task.id} index={index}>
+                          {(provided, snapshot) => (
+                            <div
+                              ref={provided.innerRef}
+                              {...provided.draggableProps}
+                              {...provided.dragHandleProps}
+                              // Adiciona um estilo visual quando este card está sendo arrastado
+                              style={{
+                                ...provided.draggableProps.style,
+                                boxShadow: snapshot.isDragging ? '0 4px 8px rgba(0,0,0,0.2)' : '0 2px 4px rgba(0, 0, 0, 0.05)',
+                              }}
+                            >
+                              <TaskCard
+                                task={task}
+                                onEdit={handleOpenEditForm}
+                                onDelete={handleDeleteTask}
+                                // onMove não é mais necessário aqui
+                              />
+                            </div>
+                          )}
+                        </Draggable>
+                      ))}
+                      {/* Espaço reservado para o item que está sendo arrastado */}
+                      {provided.placeholder}
+                    </div>
+                  </div>
+                )}
+              </Droppable>
+            ))}
+          </div>
+        )}
+      </DragDropContext>
 
-      {/* O modal do formulário (só aparece se isFormOpen for true) */}
       {isFormOpen && (
         <TaskForm
           taskToEdit={taskToEdit}
