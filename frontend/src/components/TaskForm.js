@@ -9,7 +9,7 @@ function TaskForm({ taskToEdit, onSubmit, onCancel }) {
   const [description, setDescription] = useState('');
   
   // Se 'taskToEdit' mudar (usuário clicou em editar),
-  // preenchemos o formulário com os dados da tarefa.
+  // preenche o formulário com os dados da tarefa.
   useEffect(() => {
     if (taskToEdit) {
       setTitle(taskToEdit.title);
@@ -24,13 +24,13 @@ function TaskForm({ taskToEdit, onSubmit, onCancel }) {
   const handleSubmit = (e) => {
     e.preventDefault();
     
-    // Validação simples (igual ao backend) 
+    // Validação simples de título
     if (!title) {
       alert('O título é obrigatório.');
       return;
     }
 
-    // Chama a função 'onSubmit' (que veio do App.js)
+    // Chama a função 'onSubmit' do App.js
     // Se estiver editando, passa a tarefa atualizada.
     // Se for nova, passa os novos dados.
     onSubmit({

@@ -25,9 +25,9 @@ func main() {
 	r.HandleFunc("/tasks/{id}", DeleteTaskHandler).Methods("DELETE")
 
 	// Configuração do CORS
-	// Permite que o frontend (rodando em localhost:3000) acesse esta API (rodando em localhost:8080)
+	// Permite que o frontend em localhost:3000 acesse esta API rodando em localhost:8080
 	corsHandler := handlers.CORS(
-		handlers.AllowedOrigins([]string{"http://localhost:3000"}), // URL do seu frontend React
+		handlers.AllowedOrigins([]string{"http://localhost:3000"}), // URL do frontend React
 		handlers.AllowedMethods([]string{"GET", "POST", "PUT", "DELETE", "OPTIONS"}),
 		handlers.AllowedHeaders([]string{"Content-Type", "X-Requested-With", "Authorization"}),
 	)

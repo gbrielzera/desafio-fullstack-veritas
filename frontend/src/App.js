@@ -1,12 +1,11 @@
 import React, { useState, useEffect, useCallback } from 'react';
-// Importações do react-beautiful-dnd
 import { DragDropContext, Droppable, Draggable } from '@hello-pangea/dnd';
 import * as api from './services/api'; 
 import TaskCard from './components/TaskCard';
 import TaskForm from './components/TaskForm';
 import './App.css';
 
-// Nossas 3 colunas fixas
+// 3 colunas fixas
 const COLUMNS = ['A Fazer', 'Em Progresso', 'Concluídas'];
 
 function App() {
@@ -61,7 +60,7 @@ function App() {
   const handleMoveTask = async (task, newStatus) => {
     const updatedTask = { ...task, status: newStatus };
     
-    // Atualização Otimista (Muda na UI primeiro)
+    // Atualização Otimista que muda na UI primeiro
     setTasks(tasks.map(t => (t.id === task.id ? updatedTask : t)));
 
     try {
@@ -88,7 +87,6 @@ function App() {
   };
 
   // ----- Funções de UI (Formulário) -----
-  // (Estas funções permanecem iguais)
   const handleOpenCreateForm = () => {
     setTaskToEdit(null); 
     setIsFormOpen(true);

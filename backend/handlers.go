@@ -11,9 +11,9 @@ import (
 	"github.com/gorilla/mux"
 )
 
-// storage é nosso "banco de dados" em memória.
-// Usamos um sync.RWMutex para evitar problemas de concorrência
-// (quando duas requisições tentam ler/escrever ao mesmo tempo).
+// storage é o "banco de dados" em memória.
+// sync.RWMutex para evitar problemas de concorrência
+// tipo quando duas requisições tentam ler ou escrever ao mesmo tempo.
 var (
 	tasks      = make(map[string]Task)
 	tasksMutex = &sync.RWMutex{}
@@ -28,7 +28,7 @@ func loadTasksFromFile() {
 	file, err := ioutil.ReadFile(jsonFilePath)
 	if err != nil {
 		log.Printf("Nenhum arquivo 'tasks.json' encontrado, começando com lista vazia. %v", err)
-		tasks = make(map[string]Task) // Garante que 'tasks' não seja nil
+		tasks = make(map[string]Task) // Garante que as tasks não seja nil
 		return
 	}
 
@@ -68,7 +68,7 @@ func GetTasksHandler(w http.ResponseWriter, r *http.Request) {
 	tasksMutex.RLock()
 	defer tasksMutex.RUnlock()
 
-	// Converte o mapa de tarefas em uma lista (slice) para o JSON
+	// Converte o mapa de tarefas em uma lista para o JSON
 	taskList := make([]Task, 0, len(tasks))
 	for _, task := range tasks {
 		taskList = append(taskList, task)
@@ -88,13 +88,13 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validação básica (título obrigatório) 
+	// Validação básica de título obrigatório
 	if task.Title == "" {
 		http.Error(w, "O título é obrigatório", http.StatusBadRequest)
 		return
 	}
 	
-	// Validação básica (status) 
+	// Validação básica de status
 	if task.Status == "" {
 		task.Status = StatusToDo // Define "A Fazer" como padrão
 	}
@@ -116,7 +116,7 @@ func CreateTaskHandler(w http.ResponseWriter, r *http.Request) {
 }
 
 // UpdateTaskHandler (PUT /tasks/{id})
-// Atualiza uma tarefa existente (para editar ou mover).
+// Atualiza uma tarefa existente
 func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 	vars := mux.Vars(r)
 	id := vars["id"]
@@ -127,7 +127,7 @@ func UpdateTaskHandler(w http.ResponseWriter, r *http.Request) {
 		return
 	}
 
-	// Validação (título obrigatório) 
+	// Validação de título obrigatório 
 	if updatedTask.Title == "" {
 		http.Error(w, "O título é obrigatório", http.StatusBadRequest)
 		return
@@ -175,5 +175,5 @@ func DeleteTaskHandler(w http.ResponseWriter, r *http.Request) {
 	// Salva no arquivo
 	go saveTasksToFile()
 
-	w.WriteHeader(http.StatusNoContent) // Resposta 204 (Sucesso, sem conteúdo)
+	w.WriteHeader(http.StatusNoContent) // Resposta 204 Sucesso, sem conteúdo
 }
